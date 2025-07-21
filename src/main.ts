@@ -1,8 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
+// Modifikasi untuk Vercel:
+// Jangan panggil app.listen().
+// Cukup inisialisasi aplikasi dan ekspor sebagai modul.
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
+
+  // Tambahkan konfigurasi lain di sini jika perlu
+  // Contoh: app.enableCors();
+
+  await app.init();
+  const expressApp = app.getHttpAdapter().getInstance();
+  return expressApp;
 }
-bootstrap();
+
+// Ekspor fungsi bootstrap yang akan dipanggil oleh Vercel
+export default bootstrap();
