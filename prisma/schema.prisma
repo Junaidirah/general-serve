@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Untuuk service guruJR
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  password    String
+  image       String?
+  role        String   @default("user")
+  schools     String
+  points      Int?
+  accessToken String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Report Report[]
+
+  @@map("users")
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  date      DateTime @default(now())
+  location  String?
+  activity  String?
+  media     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reports")
+}
+
+/// this is for PLN
+enum PlantType {
+  PLTD_KOTARAYA
+  PLTM_TOMINI
+  PLTD_MOUTONG_THAS
+  PLTD_MOUTONG_PLN
+  GSS_BOLANO
+}
+
+model Plant {
+  id        String    @id @default(cuid())
+  name      String
+  type      PlantType
+  machines  Machine[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Machine {
+  id        String   @id @default(cuid())
+  number    Int // Nomor mesin
+  load      Float
+  plantId   String
+  plant     Plant    @relation(fields: [plantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
