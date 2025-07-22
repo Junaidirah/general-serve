@@ -1,11 +1,17 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PlnModule } from './feature/pln/pln.module';
-import { GuruJrModule } from './feature/guru-jr/guru-jr.module';
+import { ConfigModule } from '@nestjs/config';
+import { UserService } from './feature/guru-jr/user/user.service';
+import { UserModule } from './feature/guru-jr/user/user.module';
 
 @Module({
-  imports: [PlnModule, GuruJrModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    UserModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
