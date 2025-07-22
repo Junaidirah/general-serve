@@ -1,28 +1,36 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import * as express from 'express';
 
+// Untuk development
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  // Konfigurasi lain jika perlu
   app.enableCors();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
-  if (process.env.VERCEL === '1') {
-    // Untuk Vercel
-    await app.init();
-    const expressApp = app.getHttpAdapter().getInstance();
-    return expressApp;
-  } else {
-    // Untuk lokal
-    await app.listen(3000);
-  }
+  await app.listen(process.env.PORT || 3000);
 }
 
-bootstrap();
+// Untuk Vercel
+const server = express();
+const createNestServer = async (expressInstance) => {
+  const app = await NestFactory.create(
+    AppModule,
+    new ExpressAdapter(expressInstance),
+  );
+
+  app.enableCors();
+  await app.init();
+  return app;
+};
+
+// Export untuk Vercel
+if (process.env.VERCEL) {
+  createNestServer(server);
+  module.exports = server;
+} else {
+  // Jalankan normal untuk development
+  bootstrap();
+}
+
+// Export default untuk Vercel
+export default server;
