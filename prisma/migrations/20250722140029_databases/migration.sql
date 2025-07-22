@@ -10,7 +10,7 @@ CREATE TABLE "users" (
     "image" TEXT,
     "role" TEXT NOT NULL DEFAULT 'user',
     "schools" TEXT NOT NULL,
-    "points" INTEGER,
+    "points" INTEGER DEFAULT 0,
     "accessToken" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
