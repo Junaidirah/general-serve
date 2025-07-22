@@ -12,9 +12,10 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+// update
 import { ReportService } from '../report/report.service';
 import { CreateReportDto } from './dto/create-report.dto';
-import { AuthGuard } from 'src/middleware/auth.guard';
+import { AuthGuard } from '../../../middleware/auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { multerConfig } from 'src/utils/multer.config';
 
