@@ -17,7 +17,7 @@ import { ReportService } from '../report/report.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { AuthGuard } from '../../../middleware/auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { multerConfig } from 'src/utils/multer.config';
+import { multerConfig } from '../../../utils/multer.config';
 
 @Controller('report')
 @UseGuards(AuthGuard)
