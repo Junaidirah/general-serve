@@ -7,7 +7,22 @@ import { UserModule } from './feature/guru-jr/user/user.module';
 import { ReportService } from './feature/guru-jr/report/report.service';
 import { ReportController } from './feature/guru-jr/report/report.controller';
 import { ReportModule } from './feature/guru-jr/report/report.module';
-
+import { PlantsService } from './feature/pln/plant/plant.service';
+import { PlantsController } from './feature/pln/plant/plant.controller';
+import { PlantsModule } from './feature/pln/plant/plant.module';
+import { MachinesService } from './feature/pln/machines/machines.service';
+import { MachinesController } from './feature/pln/machines/machines.controller';
+import { MachinesModule } from './feature/pln/machines/machines.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { PrismaService } from './prisma/prisma.service';
+import { LoadReadingsService } from './feature/pln/load-readings/load-readings.service';
+import { LoadReadingsController } from './feature/pln/load-readings/load-readings.controller';
+import { LoadReadingsModule } from './feature/pln/load-readings/load-readings.module';
+import { DailySummariesService } from './feature/pln/daily-summaries/daily-summaries.service';
+import { DailySummariesController } from './feature/pln/daily-summaries/daily-summaries.controller';
+import { DailySummariesModule } from './feature/pln/daily-summaries/daily-summaries.module';
+import { AnalyticsService } from './feature/pln/analytics/analytics.service';
+import { AnalyticsController } from './feature/pln/analytics/analytics.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -15,8 +30,21 @@ import { ReportModule } from './feature/guru-jr/report/report.module';
     }),
     UserModule,
     ReportModule,
+    PlantsModule,
+    MachinesModule,
+    PrismaModule,
+    LoadReadingsModule,
+    DailySummariesModule,
   ],
-  controllers: [AppController, ReportController],
-  providers: [AppService, ReportService],
+  controllers: [
+    AppController,
+    ReportController,
+    PlantsController,
+    MachinesController,
+    LoadReadingsController,
+    DailySummariesController,
+    AnalyticsController,
+  ],
+  providers: [AppService, ReportService, PlantsService, MachinesService, LoadReadingsService, DailySummariesService, AnalyticsService],
 })
 export class AppModule {}

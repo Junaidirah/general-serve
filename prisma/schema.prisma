@@ -51,14 +51,15 @@ model Report {
 enum PlantType {
   PLTD_KOTARAYA
   PLTM_TOMINI
-  PLTD_MOUTONG_THAS
-  PLTD_MOUTONG_PLN
+  THAS_POWER_PALASA
   GSS_BOLANO
+  PLN_MOUTONG
+  THAS_POWER_MOUTONG
 }
 
 model Plant {
   id        String    @id @default(cuid())
-  name      String
+  name      String    @unique
   type      PlantType
   machines  Machine[]
   createdAt DateTime  @default(now())
@@ -66,11 +67,42 @@ model Plant {
 }
 
 model Machine {
-  id        String   @id @default(cuid())
-  number    Int // Nomor mesin
-  load      Float
-  plantId   String
-  plant     Plant    @relation(fields: [plantId], references: [id])
+  id         String         @id @default(cuid())
+  identifier String
+  plantId    String
+  plant      Plant          @relation(fields: [plantId], references: [id])
+  readings   LoadReading[]
+  summaries  DailySummary[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model LoadReading {
+  id        Int      @id @default(autoincrement())
+  machineId String
+  machine   Machine  @relation(fields: [machineId], references: [id])
+  timestamp DateTime
+  load      Float
+  status    String?
+  createdAt DateTime @default(now())
+
+  @@unique([machineId, timestamp])
+}
+
+model DailySummary {
+  id        Int     @id @default(autoincrement())
+  machineId String
+  machine   Machine @relation(fields: [machineId], references: [id])
+
+  // Tanggal rekap ini berlaku
+  date      DateTime @db.Date
+  maxLoad   Float?
+  minLoad   Float?
+  dmSiang   Float?
+  dmMalam   Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([machineId, date])
 }
