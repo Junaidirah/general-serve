@@ -49,4 +49,16 @@ export class UserController {
   logout(@Req() req) {
     return this.userService.logout(req.user.id);
   }
+
+  @UseGuards(AuthGuard)
+  @Get('leaderboard')
+  getLeaderboard() {
+    return this.userService.getUserRankings();
+  }
+
+  // @UseGuards(AuthGuard)
+  @Get('all')
+  getAllUsers() {
+    return this.userService.getAllUsersWithTotal();
+  }
 }

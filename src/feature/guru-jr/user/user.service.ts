@@ -114,4 +114,47 @@ export class UserService {
     if (!user) throw new UnauthorizedException('Invalid token');
     return user;
   }
+  async getUserRankings(limit = 10) {
+    const users = await prisma.user.findMany({
+      orderBy: {
+        points: 'desc',
+      },
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        points: true,
+      },
+    });
+
+    return users.map((user, index) => ({
+      rank: index + 1,
+      ...user,
+    }));
+  }
+
+  async getAllUsersWithTotal() {
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          points: true,
+          schools: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.user.count(),
+    ]);
+
+    return {
+      totalUsers: total,
+      users,
+    };
+  }
 }
