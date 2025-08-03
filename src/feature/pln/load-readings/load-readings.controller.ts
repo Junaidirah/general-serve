@@ -2,61 +2,111 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Body,
   Param,
   Query,
-  ValidationPipe,
+  ParseIntPipe,
   HttpCode,
   HttpStatus,
-  ParseIntPipe,
 } from '@nestjs/common';
-import { LoadReadingsService } from './load-readings.service';
+import { LoadReadingService } from '../load-readings/load-readings.service';
+import { CreateLoadReadingDto } from './dto/create-load-reading.dto';
+import { PlantType } from '@prisma/client';
 import {
-  CreateLoadReadingDto,
-  BulkCreateLoadReadingDto,
-} from './dto/create-load-reading.dto';
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 
+@ApiTags('load-readings')
 @Controller('load-readings')
-export class LoadReadingsController {
-  constructor(private readonly loadReadingsService: LoadReadingsService) {}
+export class LoadReadingController {
+  constructor(private readonly loadReadingService: LoadReadingService) {}
 
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(@Body(ValidationPipe) createLoadReadingDto: CreateLoadReadingDto) {
-    return this.loadReadingsService.create(createLoadReadingDto);
-  }
-
-  @Post('bulk')
-  @HttpCode(HttpStatus.CREATED)
-  bulkCreate(@Body(ValidationPipe) bulkCreateDto: BulkCreateLoadReadingDto) {
-    return this.loadReadingsService.bulkCreate(bulkCreateDto);
-  }
-
-  @Get('machine/:machineId')
-  findByMachine(
+  @Post('machine/:machineId')
+  @ApiOperation({ summary: 'Create load reading by machine ID' })
+  @ApiParam({ name: 'machineId', description: 'Machine ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Load reading created successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Machine not found' })
+  async createLoadReadingByMachineId(
     @Param('machineId') machineId: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+    @Body() createLoadReadingDto: CreateLoadReadingDto,
   ) {
-    return this.loadReadingsService.findByMachine(
+    return this.loadReadingService.createLoadReadingByMachineId(
       machineId,
-      startDate,
-      endDate,
-      limit,
+      createLoadReadingDto,
     );
   }
 
-  @Get('machine/:machineId/average')
-  getMachineAverage(
-    @Param('machineId') machineId: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+  @Get('plant-type/:plantType')
+  @ApiOperation({ summary: 'Get load readings by plant type' })
+  @ApiParam({
+    name: 'plantType',
+    description: 'Plant type',
+    enum: PlantType,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Load readings retrieved successfully',
+  })
+  async getLoadReadingByPlantType(@Param('plantType') plantType: PlantType) {
+    return this.loadReadingService.getLoadReadingByPlantType(plantType);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all load readings' })
+  @ApiResponse({
+    status: 200,
+    description: 'All load readings retrieved successfully',
+  })
+  async getAllLoadReadings() {
+    return this.loadReadingService.getAllLoadReadings();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get load reading by ID' })
+  @ApiParam({ name: 'id', description: 'Load reading ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Load reading retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Load reading not found' })
+  async getLoadReadingById(@Param('id', ParseIntPipe) id: number) {
+    return this.loadReadingService.getLoadReadingById(id);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update load reading by ID' })
+  @ApiParam({ name: 'id', description: 'Load reading ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Load reading updated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Load reading not found' })
+  async updateLoadReading(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateData: Partial<CreateLoadReadingDto>,
   ) {
-    return this.loadReadingsService.getMachineAverage(
-      machineId,
-      startDate,
-      endDate,
-    );
+    return this.loadReadingService.updateLoadReading(id, updateData);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete load reading by ID' })
+  @ApiParam({ name: 'id', description: 'Load reading ID' })
+  @ApiResponse({
+    status: 204,
+    description: 'Load reading deleted successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Load reading not found' })
+  async deleteLoadReading(@Param('id', ParseIntPipe) id: number) {
+    await this.loadReadingService.deleteLoadReading(id);
   }
 }

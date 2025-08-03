@@ -1,287 +1,277 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import {
-  CreateLoadReadingDto,
-  BulkCreateLoadReadingDto,
-} from './dto/create-load-reading.dto';
-import { LoadReading } from '@prisma/client';
+import { CreateLoadReadingDto } from './dto/create-load-reading.dto';
+import { PlantType } from '@prisma/client';
 
 @Injectable()
-export class LoadReadingsService {
+export class LoadReadingService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createLoadReadingDto: CreateLoadReadingDto) {
-    try {
-      // Verify machine exists
-      const machine = await this.prisma.machine.findUnique({
-        where: { id: createLoadReadingDto.machineId },
-      });
-
-      if (!machine) {
-        throw new NotFoundException(
-          `Machine with ID ${createLoadReadingDto.machineId} not found`,
-        );
-      }
-
-      const reading = await this.prisma.loadReading.create({
-        data: {
-          machineId: createLoadReadingDto.machineId,
-          timestamp: new Date(createLoadReadingDto.timestamp),
-          load: createLoadReadingDto.load,
-          status: createLoadReadingDto.status,
-        },
-        include: {
-          machine: {
-            select: {
-              id: true,
-              identifier: true,
-              plant: {
-                select: {
-                  name: true,
-                  type: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      // Auto-update daily summary after creating reading
-      await this.updateDailySummary(
-        createLoadReadingDto.machineId,
-        new Date(createLoadReadingDto.timestamp),
-      );
-
-      return reading;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      if (error.code === 'P2002') {
-        throw new ConflictException(
-          'Reading for this machine and timestamp already exists',
-        );
-      }
-      throw error;
-    }
-  }
-
-  async bulkCreate(bulkCreateDto: BulkCreateLoadReadingDto) {
+  async createLoadReadingByMachineId(
+    machineId: string,
+    createLoadReadingDto: CreateLoadReadingDto,
+  ) {
     const machine = await this.prisma.machine.findUnique({
-      where: { id: bulkCreateDto.machineId },
+      where: { id: machineId },
+      include: { plant: true },
     });
 
     if (!machine) {
-      throw new NotFoundException(
-        `Machine with ID ${bulkCreateDto.machineId} not found`,
-      );
+      throw new NotFoundException('Machine not found');
     }
 
-    const createdReadings: LoadReading[] = [];
-    const datesForSummary = new Set<string>();
+    const surplus = await this.calculateSurplus(
+      machine.plant.type,
+      createLoadReadingDto.dmSiang,
+      createLoadReadingDto.dmMalam,
+      createLoadReadingDto.timestamp,
+    );
 
-    for (const reading of bulkCreateDto.readings) {
-      try {
-        const created = await this.prisma.loadReading.create({
-          data: {
-            machineId: bulkCreateDto.machineId,
-            timestamp: new Date(reading.timestamp),
-            load: reading.load,
-            status: reading.status,
-          },
-        });
-        createdReadings.push(created);
-        datesForSummary.add(created.timestamp.toISOString().split('T')[0]);
-      } catch (error) {
-        if (error.code !== 'P2002') {
-          throw error;
-        }
-      }
-    }
-
-    for (const dateStr of datesForSummary) {
-      await this.updateDailySummary(bulkCreateDto.machineId, new Date(dateStr));
-    }
-
-    return {
-      created: createdReadings.length,
-      total: bulkCreateDto.readings.length,
-      readings: createdReadings,
-    };
-  }
-
-  async findByMachine(
-    machineId: string,
-    startDate?: string,
-    endDate?: string,
-    limit: number = 100,
-  ) {
-    const where: any = { machineId };
-
-    if (startDate || endDate) {
-      where.timestamp = {};
-      if (startDate) where.timestamp.gte = new Date(startDate);
-      if (endDate) where.timestamp.lte = new Date(endDate);
-    }
-
-    return await this.prisma.loadReading.findMany({
-      where,
+    const loadReading = await this.prisma.loadReading.create({
+      data: {
+        machineId,
+        timestamp: createLoadReadingDto.timestamp,
+        load: createLoadReadingDto.load,
+        avgLoad: createLoadReadingDto.avgLoad,
+        maxLoad: createLoadReadingDto.maxLoad,
+        minLoad: createLoadReadingDto.minLoad,
+        dmSiang: createLoadReadingDto.dmSiang,
+        dmMalam: createLoadReadingDto.dmMalam,
+        dmMesin: this.getDmMesin(
+          createLoadReadingDto.dmSiang,
+          createLoadReadingDto.dmMalam,
+          createLoadReadingDto.timestamp,
+        ),
+        surplus,
+        status: createLoadReadingDto.status,
+        createdAt: new Date(),
+      },
       include: {
         machine: {
-          select: {
-            identifier: true,
-            plant: {
-              select: {
-                name: true,
-                type: true,
-              },
-            },
+          include: {
+            plant: true,
+          },
+        },
+      },
+    });
+
+    return loadReading;
+  }
+
+  async getLoadReadingByPlantType(plantType: PlantType) {
+    const loadReadings = await this.prisma.loadReading.findMany({
+      where: {
+        machine: {
+          plant: {
+            type: plantType,
+          },
+        },
+      },
+      include: {
+        machine: {
+          include: {
+            plant: true,
           },
         },
       },
       orderBy: {
         timestamp: 'desc',
       },
-      take: limit,
     });
+
+    const aggregatedData = await this.getAggregatedDataByPlantType(plantType);
+
+    return {
+      loadReadings,
+      aggregatedData,
+    };
   }
 
-  async getMachineAverage(
-    machineId: string,
-    startDate?: string,
-    endDate?: string,
-  ) {
-    const where: any = { machineId };
+  private async calculateSurplus(
+    plantType: PlantType,
+    dmSiang?: number | null,
+    dmMalam?: number | null,
+    timestamp?: Date,
+  ): Promise<number> {
+    const avgPerPlantType = await this.getAvgPerPlantType(plantType);
+    const dmMesin = this.getDmMesin(dmSiang, dmMalam, timestamp);
+    return avgPerPlantType - dmMesin;
+  }
 
-    if (startDate || endDate) {
-      where.timestamp = {};
-      if (startDate) where.timestamp.gte = new Date(startDate);
-      if (endDate) where.timestamp.lte = new Date(endDate);
-    }
-
+  private async getAvgPerPlantType(plantType: PlantType): Promise<number> {
     const result = await this.prisma.loadReading.aggregate({
-      where,
-      _avg: {
-        load: true,
+      where: {
+        machine: {
+          plant: {
+            type: plantType,
+          },
+        },
       },
-      _max: {
-        load: true,
-      },
-      _min: {
+      _sum: {
         load: true,
       },
       _count: {
-        load: true,
+        id: true,
       },
     });
 
-    const machine = await this.prisma.machine.findUnique({
-      where: { id: machineId },
-      select: {
-        identifier: true,
-        plant: {
-          select: {
-            name: true,
-            type: true,
+    if (!result._count.id || result._count.id === 0) {
+      return 0;
+    }
+
+    return (result._sum.load || 0) / result._count.id;
+  }
+
+  private getDmMesin(
+    dmSiang?: number | null,
+    dmMalam?: number | null,
+    timestamp?: Date | string,
+  ): number {
+    if (!timestamp) {
+      timestamp = new Date();
+    } else if (!(timestamp instanceof Date)) {
+      timestamp = new Date(timestamp);
+    }
+
+    const hour = timestamp.getHours();
+    const isNight = hour >= 18 || hour < 6;
+
+    return isNight ? dmMalam || 0 : dmSiang || 0;
+  }
+
+  private async getAggregatedDataByPlantType(plantType: PlantType) {
+    const now = new Date();
+    const isNight = now.getHours() >= 18 || now.getHours() < 6;
+
+    const dmSum = await this.prisma.loadReading.aggregate({
+      where: {
+        machine: {
+          plant: {
+            type: plantType,
+          },
+        },
+      },
+      _sum: {
+        ...(!isNight && { dmSiang: true }),
+        ...(isNight && { dmMalam: true }),
+      },
+    });
+
+    const totalSum = await this.prisma.loadReading.aggregate({
+      where: {
+        machine: {
+          plant: {
+            type: plantType,
+          },
+        },
+      },
+      _sum: {
+        load: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const avgPerPlantType =
+      totalSum._count.id > 0
+        ? (totalSum._sum.load || 0) / totalSum._count.id
+        : 0;
+
+    const dmMesinSum = isNight
+      ? dmSum?._sum?.dmMalam || 0
+      : dmSum?._sum?.dmSiang || 0;
+
+    return {
+      plantType,
+      avgPerPlantType,
+      dmMesinSum,
+      surplus: avgPerPlantType - dmMesinSum,
+      isNightTime: isNight,
+      totalReadings: totalSum._count.id,
+    };
+  }
+
+  async getAllLoadReadings() {
+    return this.prisma.loadReading.findMany({
+      include: {
+        machine: {
+          include: {
+            plant: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
+  }
+
+  async getLoadReadingById(id: number) {
+    const loadReading = await this.prisma.loadReading.findUnique({
+      where: { id },
+      include: {
+        machine: {
+          include: {
+            plant: true,
           },
         },
       },
     });
 
-    return {
-      machine,
-      statistics: {
-        averageLoad: result._avg.load,
-        maxLoad: result._max.load,
-        minLoad: result._min.load,
-        totalReadings: result._count.load,
-      },
-      period: {
-        startDate,
-        endDate,
-      },
-    };
+    if (!loadReading) {
+      throw new NotFoundException('Load reading not found');
+    }
+
+    return loadReading;
   }
 
-  private async updateDailySummary(machineId: string, date: Date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+  async updateLoadReading(
+    id: number,
+    updateData: Partial<CreateLoadReadingDto>,
+  ) {
+    const existingLoadReading = await this.getLoadReadingById(id);
+    let surplus = existingLoadReading.surplus;
 
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    if (updateData.dmSiang !== undefined || updateData.dmMalam !== undefined) {
+      const machine = await this.prisma.machine.findUnique({
+        where: { id: existingLoadReading.machineId },
+        include: { plant: true },
+      });
 
-    // Get all readings for the day
-    const readings = await this.prisma.loadReading.findMany({
-      where: {
-        machineId,
-        timestamp: {
-          gte: startOfDay,
-          lte: endOfDay,
+      if (machine) {
+        surplus = await this.calculateSurplus(
+          machine.plant.type,
+          updateData.dmSiang ?? existingLoadReading.dmSiang,
+          updateData.dmMalam ?? existingLoadReading.dmMalam,
+          updateData.timestamp ?? existingLoadReading.timestamp,
+        );
+      }
+    }
+
+    return this.prisma.loadReading.update({
+      where: { id },
+      data: {
+        ...updateData,
+        surplus,
+        dmMesin: this.getDmMesin(
+          updateData.dmSiang ?? existingLoadReading.dmSiang,
+          updateData.dmMalam ?? existingLoadReading.dmMalam,
+          updateData.timestamp ?? existingLoadReading.timestamp,
+        ),
+      },
+      include: {
+        machine: {
+          include: {
+            plant: true,
+          },
         },
       },
-      orderBy: {
-        timestamp: 'asc',
-      },
     });
+  }
 
-    if (readings.length === 0) return;
-
-    // Calculate daily statistics
-    const loads = readings.map((r) => r.load);
-    const maxLoad = Math.max(...loads);
-    const minLoad = Math.min(...loads);
-
-    // Calculate DM Siang (06:00 - 18:00) and DM Malam (18:00 - 06:00)
-    const siangReadings = readings.filter((r) => {
-      const hour = r.timestamp.getHours();
-      return hour >= 6 && hour < 18;
-    });
-
-    const malamReadings = readings.filter((r) => {
-      const hour = r.timestamp.getHours();
-      return hour >= 18 || hour < 6;
-    });
-
-    const dmSiang =
-      siangReadings.length > 0
-        ? siangReadings.reduce((sum, r) => sum + r.load, 0) /
-          siangReadings.length
-        : null;
-
-    const dmMalam =
-      malamReadings.length > 0
-        ? malamReadings.reduce((sum, r) => sum + r.load, 0) /
-          malamReadings.length
-        : null;
-
-    // Upsert daily summary
-    await this.prisma.dailySummary.upsert({
-      where: {
-        machineId_date: {
-          machineId,
-          date: startOfDay,
-        },
-      },
-      update: {
-        maxLoad,
-        minLoad,
-        dmSiang,
-        dmMalam,
-        updatedAt: new Date(),
-      },
-      create: {
-        machineId,
-        date: startOfDay,
-        maxLoad,
-        minLoad,
-        dmSiang,
-        dmMalam,
-        createdAt: new Date(),
-      },
-    });
+  async deleteLoadReading(id: number) {
+    await this.getLoadReadingById(id);
+    return this.prisma.loadReading.delete({ where: { id } });
   }
 }

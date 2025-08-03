@@ -67,12 +67,11 @@ model Plant {
 }
 
 model Machine {
-  id         String         @id @default(cuid())
+  id         String        @id @default(cuid())
   identifier String
   plantId    String
-  plant      Plant          @relation(fields: [plantId], references: [id])
+  plant      Plant         @relation(fields: [plantId], references: [id])
   readings   LoadReading[]
-  summaries  DailySummary[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -84,25 +83,15 @@ model LoadReading {
   machine   Machine  @relation(fields: [machineId], references: [id])
   timestamp DateTime
   load      Float
-  status    String?
-  createdAt DateTime @default(now())
-
-  @@unique([machineId, timestamp])
-}
-
-model DailySummary {
-  id        Int     @id @default(autoincrement())
-  machineId String
-  machine   Machine @relation(fields: [machineId], references: [id])
-
-  // Tanggal rekap ini berlaku
-  date      DateTime @db.Date
+  avgLoad   Float?
   maxLoad   Float?
   minLoad   Float?
   dmSiang   Float?
   dmMalam   Float?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  dmMesin   Float?
+  surplus   Float?
+  status    String?
+  createdAt DateTime
 
-  @@unique([machineId, date])
+  @@unique([machineId, timestamp])
 }

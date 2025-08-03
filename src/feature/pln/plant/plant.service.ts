@@ -69,7 +69,6 @@ export class PlantsService {
             _count: {
               select: {
                 readings: true,
-                summaries: true,
               },
             },
           },
