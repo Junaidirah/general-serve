@@ -15,14 +15,7 @@ import { MachinesController } from './feature/pln/machines/machines.controller';
 import { MachinesModule } from './feature/pln/machines/machines.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
-import { LoadReadingsService } from './feature/pln/load-readings/load-readings.service';
-import { LoadReadingsController } from './feature/pln/load-readings/load-readings.controller';
 import { LoadReadingsModule } from './feature/pln/load-readings/load-readings.module';
-import { DailySummariesService } from './feature/pln/daily-summaries/daily-summaries.service';
-import { DailySummariesController } from './feature/pln/daily-summaries/daily-summaries.controller';
-import { DailySummariesModule } from './feature/pln/daily-summaries/daily-summaries.module';
-import { AnalyticsService } from './feature/pln/analytics/analytics.service';
-import { AnalyticsController } from './feature/pln/analytics/analytics.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -34,17 +27,13 @@ import { AnalyticsController } from './feature/pln/analytics/analytics.controlle
     MachinesModule,
     PrismaModule,
     LoadReadingsModule,
-    DailySummariesModule,
   ],
   controllers: [
     AppController,
     ReportController,
     PlantsController,
     MachinesController,
-    LoadReadingsController,
-    DailySummariesController,
-    AnalyticsController,
   ],
-  providers: [AppService, ReportService, PlantsService, MachinesService, LoadReadingsService, DailySummariesService, AnalyticsService],
+  providers: [AppService, ReportService, PlantsService, MachinesService],
 })
 export class AppModule {}
