@@ -11,7 +11,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { LoadReadingService } from '../load-readings/load-readings.service';
+// FIX: Nama kelas diperbaiki menjadi LoadReadingsService (dengan 's')
+import { LoadReadingsService } from './load-readings.service';
 import { CreateLoadReadingDto } from './dto/create-load-reading.dto';
 import { PlantType } from '@prisma/client';
 import {
@@ -25,7 +26,8 @@ import {
 @ApiTags('load-readings')
 @Controller('load-readings')
 export class LoadReadingController {
-  constructor(private readonly loadReadingService: LoadReadingService) {}
+  // FIX: Nama tipe di constructor juga diperbaiki
+  constructor(private readonly loadReadingService: LoadReadingsService) {}
 
   @Post('machine/:machineId')
   @ApiOperation({ summary: 'Create load reading by machine ID' })
