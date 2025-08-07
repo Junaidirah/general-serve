@@ -1,7 +1,7 @@
 import {
   IsNotEmpty,
   IsNumber,
-  IsDate, // Changed from IsDateString
+  IsDate, // <-- UBAH IsDateString menjadi IsDate
   IsOptional,
   IsString,
 } from 'class-validator';
@@ -14,8 +14,8 @@ export class CreateLoadReadingDto {
     example: '2024-01-15T10:30:00.000Z',
   })
   @IsNotEmpty()
+  @IsDate() // <-- UBAH DI SINI
   @Type(() => Date)
-  @IsDate()
   timestamp: Date;
 
   @ApiProperty({
@@ -25,33 +25,6 @@ export class CreateLoadReadingDto {
   @IsNotEmpty()
   @IsNumber()
   load: number;
-
-  @ApiProperty({
-    description: 'Average load value',
-    example: 145.2,
-    required: false,
-  })
-  @IsOptional()
-  @IsNumber()
-  avgLoad?: number;
-
-  @ApiProperty({
-    description: 'Maximum load value',
-    example: 180.0,
-    required: false,
-  })
-  @IsOptional()
-  @IsNumber()
-  maxLoad?: number;
-
-  @ApiProperty({
-    description: 'Minimum load value',
-    example: 120.0,
-    required: false,
-  })
-  @IsOptional()
-  @IsNumber()
-  minLoad?: number;
 
   @ApiProperty({
     description: 'DM Siang (Day Time Demand)',

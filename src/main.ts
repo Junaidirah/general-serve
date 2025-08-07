@@ -2,7 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
 const express = require('express');
-import { INestApplication } from '@nestjs/common';
+// Import INestApplication dan ValidationPipe
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 
 let cachedServer: any;
 
@@ -12,6 +13,17 @@ async function bootstrap(): Promise<INestApplication> {
 
   const nestApp = await NestFactory.create(AppModule, adapter);
   nestApp.enableCors();
+
+  // Menambahkan Global Pipe untuk Validasi dan Transformasi
+  nestApp.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
   await nestApp.init();
 
